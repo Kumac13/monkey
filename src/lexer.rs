@@ -1,4 +1,6 @@
 use crate::token::{Token, TokenKind};
+use std::iter::Peekable;
+use std::str::Chars;
 
 pub fn tokenize(input: &str) -> Vec<Token> {
     let mut tokens = Vec::new();
@@ -43,36 +45,13 @@ pub fn tokenize(input: &str) -> Vec<Token> {
             '}' => tokens.push(Token::new(TokenKind::RBRACE, String::from("}"))),
             _ => {
                 if c.is_ascii_digit() {
-                    let mut num = String::from(c);
-                    while let Some(nc) = input.peek() {
-                        if nc.is_ascii_digit() {
-                            num.push(*nc);
-                            input.next();
-                        } else {
-                            break;
-                        }
-                    }
-                    tokens.push(Token::new(TokenKind::INTEGER, num));
+                    tokens.push(Token::new(
+                        TokenKind::INTEGER,
+                        consume_integer(&mut input, c),
+                    ));
                 } else if is_literal(c) {
-                    let mut literal = String::from(c);
-                    while let Some(nc) = input.peek() {
-                        if is_literal(*nc) {
-                            literal.push(*nc);
-                            input.next();
-                        } else {
-                            break;
-                        }
-                    }
-                    match literal.as_str() {
-                        "fn" => tokens.push(Token::new(TokenKind::FUNCTION, literal)),
-                        "let" => tokens.push(Token::new(TokenKind::LET, literal)),
-                        "true" => tokens.push(Token::new(TokenKind::TRUE, literal)),
-                        "false" => tokens.push(Token::new(TokenKind::FALSE, literal)),
-                        "if" => tokens.push(Token::new(TokenKind::IF, literal)),
-                        "else" => tokens.push(Token::new(TokenKind::ELSE, literal)),
-                        "return" => tokens.push(Token::new(TokenKind::RETURN, literal)),
-                        _ => tokens.push(Token::new(TokenKind::IDENTIFIER, literal)),
-                    }
+                    let literal = consume_literal(&mut input, c);
+                    tokens.push(search_keywords(&literal));
                 } else {
                     tokens.push(Token::new(TokenKind::ILLEGAL, String::from(c)));
                 }
@@ -83,8 +62,47 @@ pub fn tokenize(input: &str) -> Vec<Token> {
     tokens
 }
 
+fn consume_integer(input: &mut Peekable<Chars>, current_c: char) -> String {
+    let mut num = String::from(current_c);
+    while let Some(c) = input.peek() {
+        if c.is_ascii_digit() {
+            num.push(*c);
+            input.next();
+        } else {
+            break;
+        }
+    }
+    num
+}
+
+fn consume_literal(input: &mut Peekable<Chars>, current_c: char) -> String {
+    let mut literal = String::from(current_c);
+    while let Some(c) = input.peek() {
+        if is_literal(*c) {
+            literal.push(*c);
+            input.next();
+        } else {
+            break;
+        }
+    }
+    literal
+}
+
 fn is_literal(c: char) -> bool {
     c.is_ascii_alphabetic() || c == '_' || c.is_ascii_digit()
+}
+
+fn search_keywords(literal: &str) -> Token {
+    match literal {
+        "fn" => Token::new(TokenKind::FUNCTION, literal.to_string()),
+        "let" => Token::new(TokenKind::LET, literal.to_string()),
+        "true" => Token::new(TokenKind::TRUE, literal.to_string()),
+        "false" => Token::new(TokenKind::FALSE, literal.to_string()),
+        "if" => Token::new(TokenKind::IF, literal.to_string()),
+        "else" => Token::new(TokenKind::ELSE, literal.to_string()),
+        "return" => Token::new(TokenKind::RETURN, literal.to_string()),
+        _ => Token::new(TokenKind::IDENTIFIER, literal.to_string()),
+    }
 }
 
 #[cfg(test)]
