@@ -1,4 +1,4 @@
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum TokenKind {
     ILLEGAL,
     EOF,
@@ -29,7 +29,7 @@ pub enum TokenKind {
     RETURN,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Token {
     pub kind: TokenKind,
     pub literal: String,
