@@ -1,4 +1,4 @@
-use crate::ast::{Identifier, LetStatement, Program, Statement};
+use crate::ast::{Identifier, LetStatement, Program, ReturnStatement, Statement};
 use crate::token::{Token, TokenKind};
 use std::iter::Peekable;
 use std::vec::IntoIter;
@@ -46,6 +46,7 @@ impl Parser {
         match self.peek() {
             Some(token) => match token.kind {
                 TokenKind::LET => self.parse_let_statement(),
+                TokenKind::RETURN => self.parse_return_statement(),
                 _ => None,
             },
             None => None,
@@ -88,6 +89,29 @@ impl Parser {
         }))
     }
 
+    // return <expression>;
+    fn parse_return_statement(&mut self) -> Option<Box<dyn Statement>> {
+        let return_token = self.next()?;
+
+        // TODO: Expressionを実装後に書き換える
+        self.next();
+
+        if !self.expect_peek(TokenKind::SEMICOLON) {
+            return None;
+        }
+
+        // TODO: Expressionを実装後に書き換える
+        let dummy_expression = Box::new(Identifier {
+            token: return_token.clone(),
+            value: String::from("dummy"),
+        });
+
+        Some(Box::new(ReturnStatement {
+            token: return_token.clone(),
+            return_value: dummy_expression,
+        }))
+    }
+
     fn peek_token_is(&mut self, kind: TokenKind) -> bool {
         self.peek().map_or(false, |token| token.kind == kind)
     }
@@ -118,6 +142,26 @@ let foobar = 838383;
         let mut parser = Parser::new(lexer);
         let program = parser.parse();
 
-        assert_eq!(program.statements.len(), 3);
+        println!("{:?}", program);
+        for stmt in program.statements {
+            assert_eq!(stmt.token_literal(), "let");
+        }
+    }
+
+    #[test]
+    fn test_return_statement() {
+        let input = r#"
+return 5;
+return 10;
+return 993322;
+"#;
+        let lexer = tokenize(input);
+
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse();
+
+        for stmt in program.statements {
+            assert_eq!(stmt.token_literal(), "return");
+        }
     }
 }
