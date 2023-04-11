@@ -6,17 +6,20 @@ use std::vec::IntoIter;
 #[derive(Debug)]
 pub struct Parser {
     pub tokens: Peekable<IntoIter<Token>>,
+    pub current_token: Token,
 }
 
 impl Parser {
     pub fn new(tokens: Vec<Token>) -> Self {
         Parser {
             tokens: tokens.into_iter().peekable(),
+            current_token: Token::new(TokenKind::EOF, String::from("")),
         }
     }
 
     fn next(&mut self) -> Option<Token> {
-        self.tokens.next()
+        self.current_token = self.tokens.next()?;
+        Some(self.current_token.clone())
     }
 
     fn peek(&mut self) -> Option<&Token> {
@@ -34,7 +37,6 @@ impl Parser {
 
         while let Some(_) = self.peek() {
             if let Some(statement) = self.parse_statement() {
-                println!("statement: {:?}", statement);
                 program.statements.push(statement);
             }
             self.next();
@@ -61,20 +63,17 @@ impl Parser {
             return None;
         }
 
-        let name_token = self.next()?;
         let name = Identifier {
-            token: name_token.clone(),
-            value: name_token.literal.clone(),
+            token: self.current_token.clone(),
+            value: self.current_token.literal.clone(),
         };
 
         if !self.expect_peek(TokenKind::ASSIGN) {
             return None;
         }
 
-        if let Some(t) = self.peek() {
-            if t.kind == TokenKind::SEMICOLON {
-                self.next();
-            }
+        while !self.peek_token_is(TokenKind::SEMICOLON) {
+            self.next();
         }
 
         let dummy_expression = Box::new(Identifier {
@@ -83,7 +82,7 @@ impl Parser {
         });
 
         Some(Box::new(LetStatement {
-            token: let_token.clone(),
+            token: let_token,
             name,
             value: dummy_expression,
         }))
@@ -96,8 +95,8 @@ impl Parser {
         // TODO: Expressionを実装後に書き換える
         self.next();
 
-        if !self.expect_peek(TokenKind::SEMICOLON) {
-            return None;
+        while !self.peek_token_is(TokenKind::SEMICOLON) {
+            self.next();
         }
 
         // TODO: Expressionを実装後に書き換える
@@ -116,8 +115,13 @@ impl Parser {
         self.peek().map_or(false, |token| token.kind == kind)
     }
 
+    fn current_token_is(&mut self, kind: TokenKind) -> bool {
+        self.current_token.kind == kind
+    }
+
     fn expect_peek(&mut self, kind: TokenKind) -> bool {
         if self.peek_token_is(kind) {
+            self.next();
             true
         } else {
             false
@@ -142,7 +146,6 @@ let foobar = 838383;
         let mut parser = Parser::new(lexer);
         let program = parser.parse();
 
-        println!("{:?}", program);
         for stmt in program.statements {
             assert_eq!(stmt.token_literal(), "let");
         }
