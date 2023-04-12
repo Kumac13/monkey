@@ -1,7 +1,21 @@
 use crate::ast::{Identifier, LetStatement, Program, ReturnStatement, Statement};
 use crate::token::{Token, TokenKind};
+use std::fmt::{self, Display};
 use std::iter::Peekable;
 use std::vec::IntoIter;
+
+#[derive(Debug)]
+pub enum ParseError {
+    UnexpectedToken(Token),
+}
+
+impl Display for ParseError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            ParseError::UnexpectedToken(token) => write!(f, "Unexpected token: {}", token),
+        }
+    }
+}
 
 #[derive(Debug)]
 pub struct Parser {
@@ -115,15 +129,16 @@ impl Parser {
         self.peek().map_or(false, |token| token.kind == kind)
     }
 
-    fn current_token_is(&mut self, kind: TokenKind) -> bool {
-        self.current_token.kind == kind
-    }
-
     fn expect_peek(&mut self, kind: TokenKind) -> bool {
-        if self.peek_token_is(kind) {
+        if self.peek_token_is(kind.clone()) {
             self.next();
             true
         } else {
+            eprintln!(
+                "expected next token to be {:?}, got {:?} instead",
+                kind,
+                self.peek()
+            );
             false
         }
     }
