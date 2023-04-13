@@ -1,4 +1,7 @@
-use crate::ast::{Identifier, LetStatement, Program, ReturnStatement, Statement};
+use crate::ast::{
+    Expression, ExpressionStatement, Identifier, IntegerLiteral, LetStatement, Precedence, Program,
+    ReturnStatement, Statement,
+};
 use crate::token::{Token, TokenKind};
 use std::fmt::{self, Display};
 use std::iter::Peekable;
@@ -53,7 +56,6 @@ impl Parser {
             if let Some(statement) = self.parse_statement() {
                 program.statements.push(statement);
             }
-            self.next();
         }
         program
     }
@@ -63,7 +65,7 @@ impl Parser {
             Some(token) => match token.kind {
                 TokenKind::LET => self.parse_let_statement(),
                 TokenKind::RETURN => self.parse_return_statement(),
-                _ => None,
+                _ => self.parse_expression_statement(),
             },
             None => None,
         }
@@ -86,14 +88,15 @@ impl Parser {
             return None;
         }
 
-        while !self.peek_token_is(TokenKind::SEMICOLON) {
-            self.next();
-        }
-
+        // parse_expression
         let dummy_expression = Box::new(Identifier {
             token: let_token.clone(),
             value: String::from("dummy"),
         });
+
+        while !self.current_token_is(TokenKind::SEMICOLON) {
+            self.next();
+        }
 
         Some(Box::new(LetStatement {
             token: let_token,
@@ -109,7 +112,7 @@ impl Parser {
         // TODO: Expressionを実装後に書き換える
         self.next();
 
-        while !self.peek_token_is(TokenKind::SEMICOLON) {
+        while !self.current_token_is(TokenKind::SEMICOLON) {
             self.next();
         }
 
@@ -125,8 +128,53 @@ impl Parser {
         }))
     }
 
+    fn parse_expression_statement(&mut self) -> Option<Box<dyn Statement>> {
+        let exp_token = self.next()?;
+
+        let expression = self.parse_expression(Precedence::LOWEST);
+
+        while self.peek_token_is(TokenKind::SEMICOLON) {
+            self.next();
+        }
+
+        return Some(Box::new(ExpressionStatement {
+            token: exp_token.clone(),
+            expression: expression.unwrap(),
+        }));
+    }
+
+    fn parse_expression(&mut self, precedence: Precedence) -> Option<Box<dyn Expression>> {
+        let mut exp = match self.current_token.kind {
+            TokenKind::IDENTIFIER => self.parse_identifier(),
+            TokenKind::INTEGER => self.parse_integer_literal(),
+            _ => None,
+        };
+
+        self.next();
+
+        exp
+    }
+
+    fn parse_identifier(&mut self) -> Option<Box<dyn Expression>> {
+        Some(Box::new(Identifier {
+            token: self.current_token.clone(),
+            value: self.current_token.literal.clone(),
+        }))
+    }
+
+    fn parse_integer_literal(&mut self) -> Option<Box<dyn Expression>> {
+        Some(Box::new(IntegerLiteral {
+            token: self.current_token.clone(),
+            value: self.current_token.literal.parse().unwrap(),
+        }))
+    }
+
     fn peek_token_is(&mut self, kind: TokenKind) -> bool {
         self.peek().map_or(false, |token| token.kind == kind)
+    }
+
+    fn current_token_is(&mut self, kind: TokenKind) -> bool {
+        self.current_token.kind == kind
     }
 
     fn expect_peek(&mut self, kind: TokenKind) -> bool {
@@ -155,7 +203,8 @@ mod tests {
 let x = 5;
 let y = 10;
 let foobar = 838383;
-"#;
+        "#;
+
         let lexer = tokenize(input);
 
         let mut parser = Parser::new(lexer);
@@ -172,7 +221,8 @@ let foobar = 838383;
 return 5;
 return 10;
 return 993322;
-"#;
+        "#;
+
         let lexer = tokenize(input);
 
         let mut parser = Parser::new(lexer);
@@ -181,5 +231,31 @@ return 993322;
         for stmt in program.statements {
             assert_eq!(stmt.token_literal(), "return");
         }
+    }
+
+    #[test]
+    fn test_expression_statement() {
+        let input = r#"
+foobar;
+        "#;
+
+        let lexer = tokenize(input);
+
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse();
+
+        assert_eq!(program.statements[0].token_literal(), "foobar");
+    }
+
+    #[test]
+    fn test_integer_literal_expression() {
+        let input = "5;";
+
+        let lexer = tokenize(input);
+
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse();
+
+        assert_eq!(program.statements[0].token_literal(), "5");
     }
 }

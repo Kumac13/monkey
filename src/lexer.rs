@@ -58,7 +58,6 @@ pub fn tokenize(input: &str) -> Vec<Token> {
             }
         }
     }
-    tokens.push(Token::new(TokenKind::EOF, String::from("")));
     tokens
 }
 
@@ -209,7 +208,6 @@ if ( 5 < 10 ) {
             Token::new(TokenKind::NOT_EQ, String::from("!=")),
             Token::new(TokenKind::INTEGER, String::from("9")),
             Token::new(TokenKind::SEMICOLON, String::from(";")),
-            Token::new(TokenKind::EOF, String::from("")),
         ];
         assert_eq!(tokens, expected);
     }

@@ -3,6 +3,7 @@ use std::fmt::Debug;
 
 pub trait Node {
     fn token_literal(&self) -> String;
+    fn string(&self) -> String;
 }
 
 pub trait Statement: Node + Debug {
@@ -26,6 +27,14 @@ impl Node for Program {
             "".to_string()
         }
     }
+
+    fn string(&self) -> String {
+        let mut out = String::new();
+        for statement in &self.statements {
+            out += &statement.string();
+        }
+        out
+    }
 }
 
 #[derive(Debug)]
@@ -43,21 +52,8 @@ impl Node for LetStatement {
     fn token_literal(&self) -> String {
         self.token.literal.clone()
     }
-}
-
-#[derive(Debug)]
-pub struct Identifier {
-    pub token: Token,
-    pub value: String,
-}
-
-impl Expression for Identifier {
-    fn expression_node(&self) {}
-}
-
-impl Node for Identifier {
-    fn token_literal(&self) -> String {
-        self.token.literal.clone()
+    fn string(&self) -> String {
+        self.token_literal() + " " + &self.name.string() + " = " + &self.value.string() + ";"
     }
 }
 
@@ -75,4 +71,78 @@ impl Node for ReturnStatement {
     fn token_literal(&self) -> String {
         self.token.literal.clone()
     }
+    fn string(&self) -> String {
+        self.token_literal() + " " + &self.return_value.string() + ";"
+    }
+}
+
+#[derive(Debug)]
+pub struct ExpressionStatement {
+    pub token: Token,
+    pub expression: Box<dyn Expression>,
+}
+
+impl Statement for ExpressionStatement {
+    fn statement_node(&self) {}
+}
+
+impl Node for ExpressionStatement {
+    fn token_literal(&self) -> String {
+        self.token.literal.clone()
+    }
+
+    fn string(&self) -> String {
+        self.expression.string()
+    }
+}
+
+#[derive(Debug)]
+pub struct Identifier {
+    pub token: Token,
+    pub value: String,
+}
+
+impl Expression for Identifier {
+    fn expression_node(&self) {}
+}
+
+impl Node for Identifier {
+    fn token_literal(&self) -> String {
+        self.token.literal.clone()
+    }
+
+    fn string(&self) -> String {
+        self.value.clone()
+    }
+}
+
+#[derive(Debug)]
+pub struct IntegerLiteral {
+    pub token: Token,
+    pub value: i64,
+}
+
+impl Expression for IntegerLiteral {
+    fn expression_node(&self) {}
+}
+
+impl Node for IntegerLiteral {
+    fn token_literal(&self) -> String {
+        self.token.literal.clone()
+    }
+
+    fn string(&self) -> String {
+        self.token.literal.clone()
+    }
+}
+
+#[derive(Debug)]
+pub enum Precedence {
+    LOWEST,
+    EQUALS,      // ==
+    LESSGREATER, // > or <
+    SUM,         // +
+    PRODUCT,     // *
+    PREFIX,      // -X or !X
+    CALL,        // my_function(x){}
 }
