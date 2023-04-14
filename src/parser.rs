@@ -131,7 +131,7 @@ impl Parser {
     fn parse_expression_statement(&mut self) -> Option<Box<dyn Statement>> {
         let exp_token = self.next()?;
 
-        let expression = self.parse_expression(Precedence::LOWEST);
+        let expression = self.parse_expression(Precedence::Lowest);
 
         while self.peek_token_is(TokenKind::SEMICOLON) {
             self.next();

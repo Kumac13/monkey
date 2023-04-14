@@ -138,11 +138,10 @@ impl Node for IntegerLiteral {
 
 #[derive(Debug)]
 pub enum Precedence {
-    LOWEST,
-    EQUALS,      // ==
-    LESSGREATER, // > or <
-    SUM,         // +
-    PRODUCT,     // *
-    PREFIX,      // -X or !X
-    CALL,        // my_function(x){}
+    Lowest,
+    Equals,      // ==
+    Lessgreater, // > or <
+    Sum,         // +
+    Product,     // *
+    Prefix,      // -X or !X
 }
