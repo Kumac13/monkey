@@ -137,6 +137,32 @@ impl Node for IntegerLiteral {
 }
 
 #[derive(Debug)]
+pub struct PrefixExpression {
+    pub token: Token,
+    pub operator: String,
+    pub right: Box<dyn Expression>,
+}
+
+impl Expression for PrefixExpression {
+    fn expression_node(&self) {}
+}
+
+impl Node for PrefixExpression {
+    fn token_literal(&self) -> String {
+        self.token.literal.clone()
+    }
+
+    fn string(&self) -> String {
+        let mut out = String::new();
+        out += "(";
+        out += &self.operator;
+        out += &self.right.string();
+        out += ")";
+        out
+    }
+}
+
+#[derive(Debug)]
 pub enum Precedence {
     Lowest,
     Equals,      // ==
@@ -144,4 +170,5 @@ pub enum Precedence {
     Sum,         // +
     Product,     // *
     Prefix,      // -X or !X
+    Call,        // my_function(x){}
 }

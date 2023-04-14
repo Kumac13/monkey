@@ -1,7 +1,4 @@
-use crate::ast::{
-    Expression, ExpressionStatement, Identifier, IntegerLiteral, LetStatement, Precedence, Program,
-    ReturnStatement, Statement,
-};
+use crate::ast::*;
 use crate::token::{Token, TokenKind};
 use std::fmt::{self, Display};
 use std::iter::Peekable;
@@ -144,15 +141,29 @@ impl Parser {
     }
 
     fn parse_expression(&mut self, precedence: Precedence) -> Option<Box<dyn Expression>> {
-        let mut exp = match self.current_token.kind {
+        let exp = match self.current_token.kind {
             TokenKind::IDENTIFIER => self.parse_identifier(),
             TokenKind::INTEGER => self.parse_integer_literal(),
+            TokenKind::BANG => self.parse_prefix_expression(),
+            TokenKind::MINUS => self.parse_prefix_expression(),
             _ => None,
         };
 
+        exp
+    }
+
+    fn parse_prefix_expression(&mut self) -> Option<Box<dyn Expression>> {
+        let prefix_token = self.current_token.clone();
+
         self.next();
 
-        exp
+        let right_expression = self.parse_expression(Precedence::Prefix);
+
+        Some(Box::new(PrefixExpression {
+            token: prefix_token.clone(),
+            operator: prefix_token.literal,
+            right: right_expression.unwrap(),
+        }))
     }
 
     fn parse_identifier(&mut self) -> Option<Box<dyn Expression>> {
@@ -236,7 +247,8 @@ return 993322;
     #[test]
     fn test_expression_statement() {
         let input = r#"
-foobar;
+hoge;
+fuga;
         "#;
 
         let lexer = tokenize(input);
@@ -244,7 +256,8 @@ foobar;
         let mut parser = Parser::new(lexer);
         let program = parser.parse();
 
-        assert_eq!(program.statements[0].token_literal(), "foobar");
+        assert_eq!(program.statements[0].token_literal(), "hoge");
+        assert_eq!(program.statements[1].token_literal(), "fuga");
     }
 
     #[test]
@@ -257,5 +270,21 @@ foobar;
         let program = parser.parse();
 
         assert_eq!(program.statements[0].token_literal(), "5");
+    }
+
+    #[test]
+    fn test_prefix_expression() {
+        let input = r#"
+!5;
+-15;
+        "#;
+
+        let lexer = tokenize(input);
+
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse();
+
+        assert_eq!(program.statements[0].string(), "(!5)");
+        assert_eq!(program.statements[1].string(), "(-15)");
     }
 }
