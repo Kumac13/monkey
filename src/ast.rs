@@ -137,6 +137,26 @@ impl Node for IntegerLiteral {
 }
 
 #[derive(Debug)]
+pub struct Boolean {
+    pub token: Token,
+    pub value: bool,
+}
+
+impl Expression for Boolean {
+    fn expression_node(&self) {}
+}
+
+impl Node for Boolean {
+    fn token_literal(&self) -> String {
+        self.token.literal.clone()
+    }
+
+    fn string(&self) -> String {
+        self.token.literal.clone()
+    }
+}
+
+#[derive(Debug)]
 pub struct PrefixExpression {
     pub token: Token,
     pub operator: String,

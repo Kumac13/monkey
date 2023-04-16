@@ -146,6 +146,8 @@ impl Parser {
             TokenKind::INTEGER => self.parse_integer_literal(),
             TokenKind::BANG => self.parse_prefix_expression(),
             TokenKind::MINUS => self.parse_prefix_expression(),
+            TokenKind::TRUE | TokenKind::FALSE => self.parse_boolean(),
+            TokenKind::LPAREN => self.parse_grouped_expression(),
             _ => None,
         };
 
@@ -204,6 +206,18 @@ impl Parser {
         }))
     }
 
+    fn parse_grouped_expression(&mut self) -> Option<Box<dyn Expression>> {
+        self.next();
+
+        let exp = self.parse_expression(Precedence::Lowest);
+
+        if !self.expect_peek(TokenKind::RPAREN) {
+            return None;
+        }
+
+        exp
+    }
+
     fn parse_identifier(&mut self) -> Option<Box<dyn Expression>> {
         Some(Box::new(Identifier {
             token: self.current_token.clone(),
@@ -215,6 +229,13 @@ impl Parser {
         Some(Box::new(IntegerLiteral {
             token: self.current_token.clone(),
             value: self.current_token.literal.parse().unwrap(),
+        }))
+    }
+
+    fn parse_boolean(&mut self) -> Option<Box<dyn Expression>> {
+        Some(Box::new(Boolean {
+            token: self.current_token.clone(),
+            value: self.current_token_is(TokenKind::TRUE),
         }))
     }
 
@@ -359,6 +380,14 @@ a + b * c + d / e - f;
 3 + 4; -5 * 5;
 5 > 4 == 3 < 4;
 3 + 4 * 5 == 3 * 1 + 4 * 5;
+true == true;
+true != false;
+false == false;
+1 + (2 + 3) + 4;
+(5 + 5) * 2;
+2 / (5 + 5);
+-(5 + 5);
+!(true == true);
 "#;
         let lexer = tokenize(input);
         let mut parser = Parser::new(lexer);
@@ -390,5 +419,13 @@ a + b * c + d / e - f;
             program.statements[19].string(),
             "((3 + (4 * 5)) == ((3 * 1) + (4 * 5)))"
         );
+        assert_eq!(program.statements[20].string(), "(true == true)");
+        assert_eq!(program.statements[21].string(), "(true != false)");
+        assert_eq!(program.statements[22].string(), "(false == false)");
+        assert_eq!(program.statements[23].string(), "((1 + (2 + 3)) + 4)");
+        assert_eq!(program.statements[24].string(), "((5 + 5) * 2)");
+        assert_eq!(program.statements[25].string(), "(2 / (5 + 5))");
+        assert_eq!(program.statements[26].string(), "(-(5 + 5))");
+        assert_eq!(program.statements[27].string(), "(!(true == true))");
     }
 }
