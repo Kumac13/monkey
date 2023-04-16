@@ -1,5 +1,5 @@
 use crate::ast::*;
-use crate::token::{Token, TokenKind};
+use crate::token::{Precedence, Token, TokenKind};
 use std::fmt::{self, Display};
 use std::iter::Peekable;
 use std::vec::IntoIter;
@@ -141,7 +141,7 @@ impl Parser {
     }
 
     fn parse_expression(&mut self, precedence: Precedence) -> Option<Box<dyn Expression>> {
-        let exp = match self.current_token.kind {
+        let mut left_exp = match self.current_token.kind {
             TokenKind::IDENTIFIER => self.parse_identifier(),
             TokenKind::INTEGER => self.parse_integer_literal(),
             TokenKind::BANG => self.parse_prefix_expression(),
@@ -149,7 +149,26 @@ impl Parser {
             _ => None,
         };
 
-        exp
+        while !self.peek_token_is(TokenKind::SEMICOLON) && precedence < self.peek_precedence() {
+            let token = self.peek()?;
+
+            match token.kind {
+                TokenKind::PLUS
+                | TokenKind::MINUS
+                | TokenKind::SLASH
+                | TokenKind::ASTERISK
+                | TokenKind::EQ
+                | TokenKind::NOT_EQ
+                | TokenKind::LT
+                | TokenKind::GT => {
+                    self.next();
+                    left_exp = self.parse_infix_expression(left_exp.unwrap());
+                }
+                _ => break,
+            };
+        }
+
+        left_exp
     }
 
     fn parse_prefix_expression(&mut self) -> Option<Box<dyn Expression>> {
@@ -162,6 +181,25 @@ impl Parser {
         Some(Box::new(PrefixExpression {
             token: prefix_token.clone(),
             operator: prefix_token.literal,
+            right: right_expression.unwrap(),
+        }))
+    }
+
+    fn parse_infix_expression(
+        &mut self,
+        left_exp: Box<dyn Expression>,
+    ) -> Option<Box<dyn Expression>> {
+        let infix_token = self.current_token.clone();
+        let precedence = self.current_precedence();
+
+        self.next();
+
+        let right_expression = self.parse_expression(precedence);
+
+        Some(Box::new(InfixExpression {
+            token: infix_token.clone(),
+            operator: infix_token.literal,
+            left: left_exp,
             right: right_expression.unwrap(),
         }))
     }
@@ -201,6 +239,17 @@ impl Parser {
             false
         }
     }
+
+    fn peek_precedence(&mut self) -> Precedence {
+        match self.peek() {
+            Some(token) => token.precedence(),
+            None => Precedence::Lowest,
+        }
+    }
+
+    fn current_precedence(&mut self) -> Precedence {
+        self.current_token.precedence()
+    }
 }
 
 #[cfg(test)]
@@ -211,10 +260,10 @@ mod tests {
     #[test]
     fn test_parser() {
         let input = r#"
-let x = 5;
-let y = 10;
-let foobar = 838383;
-        "#;
+        let x = 5;
+        let y = 10;
+        let foobar = 838383;
+                "#;
 
         let lexer = tokenize(input);
 
@@ -229,10 +278,10 @@ let foobar = 838383;
     #[test]
     fn test_return_statement() {
         let input = r#"
-return 5;
-return 10;
-return 993322;
-        "#;
+        return 5;
+        return 10;
+        return 993322;
+                "#;
 
         let lexer = tokenize(input);
 
@@ -247,9 +296,9 @@ return 993322;
     #[test]
     fn test_expression_statement() {
         let input = r#"
-hoge;
-fuga;
-        "#;
+        hoge;
+        fuga;
+                "#;
 
         let lexer = tokenize(input);
 
@@ -275,9 +324,9 @@ fuga;
     #[test]
     fn test_prefix_expression() {
         let input = r#"
-!5;
--15;
-        "#;
+    !5;
+    -15;
+            "#;
 
         let lexer = tokenize(input);
 
@@ -286,5 +335,60 @@ fuga;
 
         assert_eq!(program.statements[0].string(), "(!5)");
         assert_eq!(program.statements[1].string(), "(-15)");
+    }
+
+    #[test]
+    fn test_infix_expression() {
+        let input = r#"
+5 + 5;
+5 - 5;
+5 * 5;
+5 / 5;
+5 > 5;
+5 < 5;
+5 == 5;
+5 != 5;
+-a * b;
+!-a;
+a + b + c;
+a + b - c;
+a * b * c;
+a * b / c;
+a + b / c;
+a + b * c + d / e - f;
+3 + 4; -5 * 5;
+5 > 4 == 3 < 4;
+3 + 4 * 5 == 3 * 1 + 4 * 5;
+"#;
+        let lexer = tokenize(input);
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse();
+
+        assert_eq!(program.statements[0].string(), "(5 + 5)");
+        assert_eq!(program.statements[1].string(), "(5 - 5)");
+        assert_eq!(program.statements[2].string(), "(5 * 5)");
+        assert_eq!(program.statements[3].string(), "(5 / 5)");
+        assert_eq!(program.statements[4].string(), "(5 > 5)");
+        assert_eq!(program.statements[5].string(), "(5 < 5)");
+        assert_eq!(program.statements[6].string(), "(5 == 5)");
+        assert_eq!(program.statements[7].string(), "(5 != 5)");
+        assert_eq!(program.statements[8].string(), "((-a) * b)");
+        assert_eq!(program.statements[9].string(), "(!(-a))");
+        assert_eq!(program.statements[10].string(), "((a + b) + c)");
+        assert_eq!(program.statements[11].string(), "((a + b) - c)");
+        assert_eq!(program.statements[12].string(), "((a * b) * c)");
+        assert_eq!(program.statements[13].string(), "((a * b) / c)");
+        assert_eq!(program.statements[14].string(), "(a + (b / c))");
+        assert_eq!(
+            program.statements[15].string(),
+            "(((a + (b * c)) + (d / e)) - f)"
+        );
+        assert_eq!(program.statements[16].string(), "(3 + 4)");
+        assert_eq!(program.statements[17].string(), "((-5) * 5)");
+        assert_eq!(program.statements[18].string(), "((5 > 4) == (3 < 4))");
+        assert_eq!(
+            program.statements[19].string(),
+            "((3 + (4 * 5)) == ((3 * 1) + (4 * 5)))"
+        );
     }
 }

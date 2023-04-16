@@ -163,12 +163,31 @@ impl Node for PrefixExpression {
 }
 
 #[derive(Debug)]
-pub enum Precedence {
-    Lowest,
-    Equals,      // ==
-    Lessgreater, // > or <
-    Sum,         // +
-    Product,     // *
-    Prefix,      // -X or !X
-    Call,        // my_function(x){}
+pub struct InfixExpression {
+    pub token: Token,
+    pub left: Box<dyn Expression>,
+    pub operator: String,
+    pub right: Box<dyn Expression>,
+}
+
+impl Expression for InfixExpression {
+    fn expression_node(&self) {}
+}
+
+impl Node for InfixExpression {
+    fn token_literal(&self) -> String {
+        self.token.literal.clone()
+    }
+
+    fn string(&self) -> String {
+        let mut out = String::new();
+        out += "(";
+        out += &self.left.string();
+        out += " ";
+        out += &self.operator;
+        out += " ";
+        out += &self.right.string();
+        out += ")";
+        out
+    }
 }

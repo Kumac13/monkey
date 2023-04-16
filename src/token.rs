@@ -76,6 +76,16 @@ impl Token {
     pub fn new(kind: TokenKind, literal: String) -> Token {
         Token { kind, literal }
     }
+
+    pub fn precedence(&self) -> Precedence {
+        match self.kind {
+            TokenKind::EQ | TokenKind::NOT_EQ => Precedence::Equals,
+            TokenKind::LT | TokenKind::GT => Precedence::Lessgreater,
+            TokenKind::PLUS | TokenKind::MINUS => Precedence::Sum,
+            TokenKind::SLASH | TokenKind::ASTERISK => Precedence::Product,
+            _ => Precedence::Lowest,
+        }
+    }
 }
 
 impl Display for Token {
@@ -86,4 +96,15 @@ impl Display for Token {
             self.kind, self.literal
         )
     }
+}
+
+#[derive(Debug, PartialEq, PartialOrd)]
+pub enum Precedence {
+    Lowest = 1,
+    Equals = 2,      // ==
+    Lessgreater = 3, // > or <
+    Sum = 4,         // +
+    Product = 5,     // *
+    Prefix = 6,      // -X or !X
+    Call = 7,        // my_function(x){}
 }
