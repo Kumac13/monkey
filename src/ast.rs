@@ -97,6 +97,30 @@ impl Node for ExpressionStatement {
 }
 
 #[derive(Debug)]
+pub struct BlockStatement {
+    pub token: Token,
+    pub statements: Vec<Box<dyn Statement>>,
+}
+
+impl Statement for BlockStatement {
+    fn statement_node(&self) {}
+}
+
+impl Node for BlockStatement {
+    fn token_literal(&self) -> String {
+        self.token.literal.clone()
+    }
+
+    fn string(&self) -> String {
+        let mut out = String::new();
+        for statement in &self.statements {
+            out += &statement.string();
+        }
+        out
+    }
+}
+
+#[derive(Debug)]
 pub struct Identifier {
     pub token: Token,
     pub value: String,
@@ -208,6 +232,40 @@ impl Node for InfixExpression {
         out += " ";
         out += &self.right.string();
         out += ")";
+        out
+    }
+}
+
+#[derive(Debug)]
+pub struct IfExpression {
+    pub token: Token,
+    pub condition: Box<dyn Expression>,
+    pub consequence: BlockStatement,
+    pub alternative: Option<BlockStatement>,
+}
+
+impl Expression for IfExpression {
+    fn expression_node(&self) {}
+}
+
+impl Node for IfExpression {
+    fn token_literal(&self) -> String {
+        self.token_literal().clone()
+    }
+
+    fn string(&self) -> String {
+        let mut out = String::new();
+        out += "if ";
+        out += &self.condition.string();
+        out += " { ";
+        out += &self.consequence.string();
+        out += " }";
+        if let Some(alternative) = &self.alternative {
+            out += " else";
+            out += " { ";
+            out += &alternative.string();
+            out += " }";
+        }
         out
     }
 }

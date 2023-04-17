@@ -140,6 +140,24 @@ impl Parser {
         }));
     }
 
+    fn parse_block_statement(&mut self) -> Option<BlockStatement> {
+        let block_token = self.current_token.clone();
+        let mut block_statements = Vec::new();
+
+        while !self.current_token_is(TokenKind::RBRACE) && !self.current_token_is(TokenKind::EOF) {
+            let statement = self.parse_statement();
+            if let Some(statement) = statement {
+                block_statements.push(statement);
+            }
+            self.next()?;
+        }
+
+        Some(BlockStatement {
+            token: block_token,
+            statements: block_statements,
+        })
+    }
+
     fn parse_expression(&mut self, precedence: Precedence) -> Option<Box<dyn Expression>> {
         let mut left_exp = match self.current_token.kind {
             TokenKind::IDENTIFIER => self.parse_identifier(),
@@ -148,6 +166,7 @@ impl Parser {
             TokenKind::MINUS => self.parse_prefix_expression(),
             TokenKind::TRUE | TokenKind::FALSE => self.parse_boolean(),
             TokenKind::LPAREN => self.parse_grouped_expression(),
+            TokenKind::IF => self.parse_if_expression(),
             _ => None,
         };
 
@@ -216,6 +235,46 @@ impl Parser {
         }
 
         exp
+    }
+
+    fn parse_if_expression(&mut self) -> Option<Box<dyn Expression>> {
+        let if_toknen = self.current_token.clone();
+
+        if !self.expect_peek(TokenKind::LPAREN) {
+            return None;
+        }
+
+        self.next();
+        let condition = self.parse_expression(Precedence::Lowest);
+
+        if !self.expect_peek(TokenKind::RPAREN) {
+            return None;
+        }
+
+        if !self.expect_peek(TokenKind::LBRACE) {
+            return None;
+        }
+
+        let consequence = self.parse_block_statement();
+
+        let alternative = if self.peek_token_is(TokenKind::ELSE) {
+            self.next();
+
+            if !self.expect_peek(TokenKind::LBRACE) {
+                return None;
+            }
+
+            self.parse_block_statement()
+        } else {
+            None
+        };
+
+        Some(Box::new(IfExpression {
+            token: if_toknen,
+            condition: condition.unwrap(),
+            consequence: consequence.unwrap(),
+            alternative,
+        }))
     }
 
     fn parse_identifier(&mut self) -> Option<Box<dyn Expression>> {
@@ -427,5 +486,30 @@ false == false;
         assert_eq!(program.statements[25].string(), "(2 / (5 + 5))");
         assert_eq!(program.statements[26].string(), "(-(5 + 5))");
         assert_eq!(program.statements[27].string(), "(!(true == true))");
+    }
+
+    #[test]
+    fn test_if_expression() {
+        let input = "if (x < y) { x }";
+
+        let lexer = tokenize(input);
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse();
+
+        assert_eq!(program.statements[0].string(), "if (x < y) { x }");
+    }
+
+    #[test]
+    fn test_if_else_expression() {
+        let input = "if (x < y) { x } else { y }";
+
+        let lexer = tokenize(input);
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse();
+
+        assert_eq!(
+            program.statements[0].string(),
+            "if (x < y) { x } else { y }"
+        );
     }
 }
