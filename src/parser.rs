@@ -167,6 +167,7 @@ impl Parser {
             TokenKind::TRUE | TokenKind::FALSE => self.parse_boolean(),
             TokenKind::LPAREN => self.parse_grouped_expression(),
             TokenKind::IF => self.parse_if_expression(),
+            TokenKind::FUNCTION => self.parse_function_literal(),
             _ => None,
         };
 
@@ -289,6 +290,64 @@ impl Parser {
             token: self.current_token.clone(),
             value: self.current_token.literal.parse().unwrap(),
         }))
+    }
+
+    fn parse_function_literal(&mut self) -> Option<Box<dyn Expression>> {
+        let function_token = self.current_token.clone();
+
+        if !self.expect_peek(TokenKind::LPAREN) {
+            return None;
+        }
+
+        let parameters = self.parse_function_parameters();
+
+        if !self.expect_peek(TokenKind::LBRACE) {
+            return None;
+        }
+
+        let body = self.parse_block_statement();
+
+        Some(Box::new(FunctionLiteral {
+            token: function_token,
+            parameters,
+            body: body.unwrap(),
+        }))
+    }
+
+    fn parse_function_parameters(&mut self) -> Vec<Identifier> {
+        let mut identifiers = vec![];
+
+        if self.peek_token_is(TokenKind::RPAREN) {
+            self.next();
+            return identifiers;
+        }
+
+        self.next();
+
+        let identifier = Identifier {
+            token: self.current_token.clone(),
+            value: self.current_token.literal.clone(),
+        };
+
+        identifiers.push(identifier);
+
+        while self.peek_token_is(TokenKind::COMMA) {
+            self.next();
+            self.next();
+
+            let identifier = Identifier {
+                token: self.current_token.clone(),
+                value: self.current_token.literal.clone(),
+            };
+
+            identifiers.push(identifier);
+        }
+
+        if !self.expect_peek(TokenKind::RPAREN) {
+            return vec![];
+        }
+
+        identifiers
     }
 
     fn parse_boolean(&mut self) -> Option<Box<dyn Expression>> {
@@ -511,5 +570,16 @@ false == false;
             program.statements[0].string(),
             "if (x < y) { x } else { y }"
         );
+    }
+
+    #[test]
+    fn test_function_literal() {
+        let input = "fn(x, y) { x + y; }";
+
+        let lexer = tokenize(input);
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse();
+
+        assert_eq!(program.statements[0].string(), "fn(x, y)(x + y)");
     }
 }

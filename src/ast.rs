@@ -161,6 +161,34 @@ impl Node for IntegerLiteral {
 }
 
 #[derive(Debug)]
+pub struct FunctionLiteral {
+    pub token: Token,
+    pub parameters: Vec<Identifier>,
+    pub body: BlockStatement,
+}
+
+impl Expression for FunctionLiteral {
+    fn expression_node(&self) {}
+}
+
+impl Node for FunctionLiteral {
+    fn token_literal(&self) -> String {
+        self.token.literal.clone()
+    }
+
+    fn string(&self) -> String {
+        let mut out = String::new();
+        let params: Vec<String> = self.parameters.iter().map(|p| p.string()).collect();
+        out += &self.token_literal();
+        out += "(";
+        out += &params.join(", ");
+        out += ")";
+        out += &self.body.string();
+        out
+    }
+}
+
+#[derive(Debug)]
 pub struct Boolean {
     pub token: Token,
     pub value: bool,
